@@ -1,0 +1,63 @@
+/* Modern Input Field Styles */
+.modern-input {
+    -fx-background-color: #F8F9FA;
+    -fx-border-color: #E0E0E0;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-border-width: 1.5;
+    -fx-padding: 12 15;
+    -fx-font-size: 14;
+    -fx-text-fill: #333;
+    -fx-prompt-text-fill: #999;
+    -fx-cursor: text;
+}
+
+.modern-input:focused {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #7B76F1;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(123, 118, 241, 0.2), 8, 0, 0, 2);
+}
+
+.modern-input:hover {
+    -fx-border-color: #BDBDBD;
+}
+
+/* Modern ComboBox Styles */
+.modern-combo {
+    -fx-background-color: #F8F9FA;
+    -fx-border-color: #E0E0E0;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-border-width: 1.5;
+    -fx-padding: 12 15;
+    -fx-font-size: 14;
+    -fx-text-fill: #333;
+    -fx-prompt-text-fill: #999;
+    -fx-cursor: hand;
+}
+
+.modern-combo:focused {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #7B76F1;
+    -fx-border-width: 2;
+    -fx-effect: dropshadow(gaussian, rgba(123, 118, 241, 0.2), 8, 0, 0, 2);
+}
+
+.modern-combo:hover {
+    -fx-border-color: #BDBDBD;
+}
+
+/* ComboBox Arrow Button */
+.modern-combo .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.modern-combo .arrow {
+    -fx-background-color: #7B76F1;
+}
+
+.modern-combo:focused .arrow {
+    -fx-background-color: #7B76F1;
+}
+

@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.effect.ColorAdjust?>
+
+<AnchorPane prefHeight="850.0" prefWidth="1200.0" style="-fx-background-color: #F4F6FC;" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controllers.SchoolYearsController">
+   <children>
+      <!-- Sidebar -->
+      <AnchorPane layoutX="0.0" layoutY="0.0" prefWidth="250.0" style="-fx-background-color: #F4F6FC;" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+            <HBox alignment="CENTER_LEFT" layoutX="20.0" layoutY="30.0" spacing="8.0">
+               <children>
+                  <ImageView fitHeight="40.0" fitWidth="96.0" pickOnBounds="true" preserveRatio="true">
+                     <image>
+                        <Image url="@../images/logo.jpg" />
+                     </image>
+                  </ImageView>
+               </children>
+            </HBox>
+            <Text fill="#5a0bb4" fontSmoothingType="LCD" layoutX="79.0" layoutY="59.0" strokeType="OUTSIDE" strokeWidth="0.0" text="DORPAY">
+               <font>
+                  <Font name="System Bold" size="24.0" />
+               </font>
+            </Text>
+            
+            <VBox layoutX="20.0" layoutY="100.0" spacing="8.0">
+               <children>
+                  <Button fx:id="dashboardBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handleDashboard" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: transparent; -fx-text-fill: #333; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="Dashboard">
+                     <graphic>
+                        <SVGPath fill="#7B76F1" content="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                     </graphic>
+                  </Button>
+                  <Button fx:id="schoolYearsBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handleSchoolYears" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: #7B76F1; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="School Years">
+                     <graphic>
+                        <SVGPath fill="white" content="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" />
+                     </graphic>
+                  </Button>
+                  <Button fx:id="studentsBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handleStudents" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: transparent; -fx-text-fill: #333; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="Students">
+                     <graphic>
+                        <SVGPath fill="#7B76F1" content="M16 7c0-2.21-1.79-4-4-4S8 4.79 8 7s1.79 4 4 4 4-1.79 4-4zm-4 6c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                     </graphic>
+                  </Button>
+                  <Button fx:id="payablesBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handlePayables" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: transparent; -fx-text-fill: #333; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="Payables">
+                     <graphic>
+                        <SVGPath fill="#7B76F1" content="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+                     </graphic>
+                  </Button>
+                  <Button fx:id="paymentsBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handlePayments" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: transparent; -fx-text-fill: #333; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="Payments">
+                     <graphic>
+                        <SVGPath fill="#7B76F1" content="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 1.99 2H18c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                     </graphic>
+                  </Button>
+                  <Button fx:id="promissoryNotesBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handlePromissoryNotes" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: transparent; -fx-text-fill: #333; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="Promissory Notes">
+                     <graphic>
+                        <SVGPath fill="#7B76F1" content="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                     </graphic>
+                  </Button>
+               </children>
+            </VBox>
+            
+            <VBox layoutX="20.0" spacing="8.0" AnchorPane.bottomAnchor="30.0">
+               <children>
+                  <Button fx:id="settingsBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handleSettings" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: transparent; -fx-text-fill: #333; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="Settings">
+                     <graphic>
+                        <SVGPath content="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="#7B76F1" />
+                     </graphic>
+                  </Button>
+                  <Button fx:id="logoutBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handleLogout" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: transparent; -fx-text-fill: #FF0000; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="Logout">
+                     <graphic>
+                        <SVGPath content="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" fill="#FF0000" />
+                     </graphic>
+                  </Button>
+               </children>
+            </VBox>
+         </children>
+      </AnchorPane>
+      
+      <!-- Main Content -->
+      <AnchorPane style="-fx-background-color: #F4F6FC;" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="250.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+            <!-- Header -->
+            <HBox alignment="CENTER_LEFT" spacing="20.0" AnchorPane.leftAnchor="30.0" AnchorPane.rightAnchor="30.0" AnchorPane.topAnchor="25.0">
+               <children>
+                  <Text strokeType="OUTSIDE" strokeWidth="0.0" text="School Year">
+                     <font>
+                        <Font name="System Bold" size="28.0" />
+                     </font>
+                  </Text>
+               </children>
+            </HBox>
+            
+            <!-- Search and Filter -->
+            <VBox spacing="8.0" AnchorPane.leftAnchor="30.0" AnchorPane.rightAnchor="30.0" AnchorPane.topAnchor="80.0">
+               <children>
+                  <HBox spacing="15.0">
+                     <children>
+                        <VBox spacing="3.0" HBox.hgrow="ALWAYS">
+                           <children>
+                              <Label style="-fx-font-size: 12; -fx-text-fill: #666; -fx-font-weight: bold;" text="Search" />
+                              <TextField fx:id="searchField" maxHeight="36.0" maxWidth="1.7976931348623157E308" minHeight="36.0" minWidth="120.0" onKeyReleased="#handleSearch" prefHeight="36.0" promptText="Search School Year" style="-fx-background-color: #F8F9FA; -fx-border-color: #E0E0E0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-border-width: 1.5; -fx-padding: 6 10; -fx-font-size: 14; -fx-text-fill: #333; -fx-prompt-text-fill: #999; -fx-cursor: text;" VBox.vgrow="NEVER" />
+                           </children>
+                        </VBox>
+                        <VBox spacing="3.0" HBox.hgrow="ALWAYS">
+                           <children>
+                              <Label style="-fx-font-size: 12; -fx-text-fill: #666; -fx-font-weight: bold;" text="Status" />
+                              <ComboBox fx:id="statusFilterCombo" maxHeight="36.0" maxWidth="1.7976931348623157E308" minHeight="36.0" minWidth="120.0" onAction="#handleStatusFilter" prefHeight="36.0" promptText="All" style="-fx-background-color: #F8F9FA; -fx-border-color: #E0E0E0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-border-width: 1.5; -fx-font-size: 14; -fx-text-fill: #333; -fx-prompt-text-fill: #999; -fx-cursor: hand;" VBox.vgrow="NEVER" />
+                           </children>
+                        </VBox>
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+            
+            <!-- Main Content Area - Split between List and Form -->
+            <VBox spacing="20.0" AnchorPane.bottomAnchor="20.0" AnchorPane.leftAnchor="30.0" AnchorPane.rightAnchor="30.0" AnchorPane.topAnchor="150.0">
+               <children>
+                  <!-- List of Years -->
+                  <VBox spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20;" VBox.vgrow="ALWAYS">
+                     <children>
+                        <HBox alignment="CENTER_LEFT" spacing="10.0">
+                           <children>
+                              <Text strokeType="OUTSIDE" strokeWidth="0.0" text="List of Year">
+                                 <font>
+                                    <Font name="System Bold" size="16.0" />
+                                 </font>
+                              </Text>
+                              <Text fx:id="totalYearsLabel" strokeType="OUTSIDE" strokeWidth="0.0" style="-fx-text-fill: #666; -fx-font-size: 14;" text="(Total: 0)">
+                                 <font>
+                                    <Font size="14.0" />
+                                 </font>
+                              </Text>
+                           </children>
+                        </HBox>
+                        <ListView fx:id="yearsListView" maxWidth="1.7976931348623157E308" onMouseClicked="#handleListClick" VBox.vgrow="ALWAYS" />
+                     </children>
+                  </VBox>
+                  
+                  <!-- School Year Information Form -->
+                  <VBox spacing="12.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 18;" VBox.vgrow="NEVER">
+                     <children>
+                        <Text strokeType="OUTSIDE" strokeWidth="0.0" text="School Year Information">
+                           <font>
+                              <Font name="System Bold" size="15.0" />
+                           </font>
+                        </Text>
+                        <GridPane hgap="10.0" vgap="10.0">
+                           <columnConstraints>
+                              <ColumnConstraints hgrow="ALWAYS" minWidth="150.0" />
+                              <ColumnConstraints hgrow="ALWAYS" minWidth="150.0" />
+                              <ColumnConstraints hgrow="ALWAYS" minWidth="150.0" />
+                              <ColumnConstraints hgrow="ALWAYS" minWidth="150.0" />
+                           </columnConstraints>
+                           <rowConstraints>
+                              <RowConstraints minHeight="60.0" prefHeight="60.0" />
+                           </rowConstraints>
+                           <children>
+                              <VBox maxWidth="1.7976931348623157E308" spacing="3.0" GridPane.columnIndex="0" GridPane.hgrow="ALWAYS">
+                                 <children>
+                                    <Label style="-fx-font-size: 12; -fx-text-fill: #666; -fx-font-weight: bold;" text="From Year" />
+                                    <TextField fx:id="fromYearField" maxWidth="1.7976931348623157E308" onKeyReleased="#handleYearFieldChange" prefHeight="36.0" promptText="ex. 2025" style="-fx-background-color: #F8F9FA; -fx-border-color: #E0E0E0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-border-width: 1.5; -fx-padding: 6 10; -fx-font-size: 14; -fx-text-fill: #333; -fx-prompt-text-fill: #999; -fx-cursor: text;" VBox.vgrow="NEVER" />
+                                 </children>
+                              </VBox>
+                              <VBox maxWidth="1.7976931348623157E308" spacing="3.0" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS">
+                                 <children>
+                                    <Label style="-fx-font-size: 12; -fx-text-fill: #666; -fx-font-weight: bold;" text="To Year" />
+                                    <TextField fx:id="toYearField" maxWidth="1.7976931348623157E308" onKeyReleased="#handleYearFieldChange" prefHeight="36.0" promptText="ex. 2026" style="-fx-background-color: #F8F9FA; -fx-border-color: #E0E0E0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-border-width: 1.5; -fx-padding: 6 10; -fx-font-size: 14; -fx-text-fill: #333; -fx-prompt-text-fill: #999; -fx-cursor: text;" VBox.vgrow="NEVER" />
+                                 </children>
+                              </VBox>
+                           </children>
+                        </GridPane>
+                        
+                        <!-- Actions -->
+                        <HBox alignment="CENTER_LEFT" spacing="8.0" style="-fx-padding: 10 0 0 0;">
+                           <children>
+                              <Button fx:id="addBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleAdd" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Add" />
+                              <Button fx:id="updateBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleUpdate" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #FF9800; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Update" />
+                              <Button fx:id="deleteBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleDelete" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #F44336; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Deactivate" />
+                              <Button fx:id="reactivateBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleReactivate" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Reactivate" />
+                              <Button fx:id="clearBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleClear" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #757575; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Clear" />
+                           </children>
+                        </HBox>
+                     </children>
+                  </VBox>
+               </children>
+            </VBox>
+         </children>
+      </AnchorPane>
+   </children>
+</AnchorPane>
+
