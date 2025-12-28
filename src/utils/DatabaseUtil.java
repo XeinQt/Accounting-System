@@ -100,40 +100,32 @@ public class DatabaseUtil {
                         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                 
                 // Add new columns if they don't exist (for schema migration)
+                // Note: MySQL doesn't support IF NOT EXISTS with ALTER TABLE, so we use try-catch
                 try {
-                    // Add first_name, middle_name, last_name columns if they don't exist
-                    stmt.execute("ALTER TABLE student ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)");
-                    stmt.execute("ALTER TABLE student ADD COLUMN IF NOT EXISTS middle_name VARCHAR(100)");
-                    stmt.execute("ALTER TABLE student ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)");
-                    
-                    // Add status column if it doesn't exist
-                    stmt.execute("ALTER TABLE student ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'");
-                    
+                    stmt.execute("ALTER TABLE student ADD COLUMN first_name VARCHAR(100)");
+                } catch (SQLException e) {
+                    // Column exists, ignore
+                }
+                try {
+                    stmt.execute("ALTER TABLE student ADD COLUMN middle_name VARCHAR(100)");
+                } catch (SQLException e) {
+                    // Column exists, ignore
+                }
+                try {
+                    stmt.execute("ALTER TABLE student ADD COLUMN last_name VARCHAR(100)");
+                } catch (SQLException e) {
+                    // Column exists, ignore
+                }
+                try {
+                    stmt.execute("ALTER TABLE student ADD COLUMN status VARCHAR(20) DEFAULT 'active'");
                     // Update existing records to have 'active' status if they are NULL
                     stmt.execute("UPDATE student SET status = 'active' WHERE status IS NULL OR status = ''");
                 } catch (SQLException e) {
-                    // Column might already exist, or MySQL version doesn't support IF NOT EXISTS
-                    // Try without IF NOT EXISTS for older MySQL versions
+                    // Column exists, but still update status for existing records
                     try {
-                        stmt.execute("ALTER TABLE student ADD COLUMN first_name VARCHAR(100)");
-                    } catch (SQLException e2) {
-                        // Column exists, ignore
-                    }
-                    try {
-                        stmt.execute("ALTER TABLE student ADD COLUMN middle_name VARCHAR(100)");
-                    } catch (SQLException e2) {
-                        // Column exists, ignore
-                    }
-                    try {
-                        stmt.execute("ALTER TABLE student ADD COLUMN last_name VARCHAR(100)");
-                    } catch (SQLException e2) {
-                        // Column exists, ignore
-                    }
-                    try {
-                        stmt.execute("ALTER TABLE student ADD COLUMN status VARCHAR(20) DEFAULT 'active'");
                         stmt.execute("UPDATE student SET status = 'active' WHERE status IS NULL OR status = ''");
                     } catch (SQLException e2) {
-                        // Column exists, ignore
+                        // Ignore update errors
                     }
                 }
                 
@@ -159,16 +151,16 @@ public class DatabaseUtil {
                         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                 
                 // Add status column to belong table if it doesn't exist (for existing databases)
+                // Note: MySQL doesn't support IF NOT EXISTS with ALTER TABLE, so we use try-catch
                 try {
-                    stmt.execute("ALTER TABLE belong ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'");
+                    stmt.execute("ALTER TABLE belong ADD COLUMN status VARCHAR(20) DEFAULT 'active'");
                     stmt.execute("UPDATE belong SET status = 'active' WHERE status IS NULL OR status = ''");
                 } catch (SQLException e) {
-                    // Column might already exist, or MySQL version doesn't support IF NOT EXISTS
+                    // Column exists, but still update status for existing records
                     try {
-                        stmt.execute("ALTER TABLE belong ADD COLUMN status VARCHAR(20) DEFAULT 'active'");
                         stmt.execute("UPDATE belong SET status = 'active' WHERE status IS NULL OR status = ''");
                     } catch (SQLException e2) {
-                        // Column exists, ignore
+                        // Ignore update errors
                     }
                 }
                 

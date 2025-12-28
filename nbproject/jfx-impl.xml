@@ -3545,9 +3545,13 @@
     <target name="jfx-project-build" depends="-jfx-do-compile, -jfx-do-jar, -jfx-do-post-jar"/>
     <target name="jfx-build-noscript" depends="-set-fallback-no-javascript, -jfx-do-compile, -jfx-do-jar, -jfx-do-post-jar"/>
     
-    <target name="jfx-rebuild">
-        <antcall target="-rebuild-on-another-platform" />
-        <antcall target="-rebuild-on-same-platform" />
+    <target name="jfx-rebuild" depends="-check-javascript-available,-jfx-rebuild-with-script,-jfx-rebuild-without-script"/>
+    <target name="-jfx-rebuild-with-script" depends="-check-javascript-available" if="javascript.available">
+        <antcall target="-rebuild-on-another-platform"/>
+        <antcall target="-rebuild-on-same-platform"/>
+    </target>
+    <target name="-jfx-rebuild-without-script" depends="-check-javascript-available" unless="javascript.available">
+        <antcall target="jfx-rebuild-noscript"/>
     </target>
     <target name="jfx-project-rebuild" depends=" clean, -jfx-do-compile, -jfx-do-jar, -jfx-do-post-jar"/>
     <target name="jfx-rebuild-noscript" depends="-set-fallback-no-javascript, clean, -jfx-do-compile, -jfx-do-jar, -jfx-do-post-jar"/>
@@ -3584,6 +3588,52 @@
                 <isset property="do.jar"/>
                 <equals arg1="${do.jar}" arg2="false"/>
             </and>
+        </condition>
+    </target>
+    <target name="-check-javascript-available">
+        <!-- Java 15+ removed Nashorn JavaScript engine -->
+        <!-- Use ant.java.version which is set by Ant automatically -->
+        <local name="version-output"/>
+        <local name="java.executable"/>
+        <condition property="java.executable" value="${active.platform.home.java.executable}">
+            <isset property="active.platform.home.java.executable"/>
+        </condition>
+        <condition property="java.executable" value="${java.home}${file.separator}bin${file.separator}java">
+            <not><isset property="active.platform.home.java.executable"/></not>
+        </condition>
+        <exec executable="${java.executable}" outputproperty="version-output" errorproperty="version-error" failonerror="false">
+            <arg value="-version"/>
+        </exec>
+        <!-- Java 15+ removed Nashorn, so check for version 15 or higher -->
+        <condition property="no.javascript.due.to.version">
+            <or>
+                <contains string="${version-output}" substring="version &quot;15"/>
+                <contains string="${version-output}" substring="version &quot;16"/>
+                <contains string="${version-output}" substring="version &quot;17"/>
+                <contains string="${version-output}" substring="version &quot;18"/>
+                <contains string="${version-output}" substring="version &quot;19"/>
+                <contains string="${version-output}" substring="version &quot;20"/>
+                <contains string="${version-output}" substring="version &quot;21"/>
+                <contains string="${version-output}" substring="version &quot;22"/>
+                <contains string="${version-output}" substring="version &quot;23"/>
+                <contains string="${version-output}" substring="version &quot;24"/>
+                <!-- Also check for openjdk format -->
+                <contains string="${version-output}" substring="openjdk version &quot;15"/>
+                <contains string="${version-output}" substring="openjdk version &quot;16"/>
+                <contains string="${version-output}" substring="openjdk version &quot;17"/>
+                <contains string="${version-output}" substring="openjdk version &quot;18"/>
+                <contains string="${version-output}" substring="openjdk version &quot;19"/>
+                <contains string="${version-output}" substring="openjdk version &quot;20"/>
+                <contains string="${version-output}" substring="openjdk version &quot;21"/>
+                <contains string="${version-output}" substring="openjdk version &quot;22"/>
+                <contains string="${version-output}" substring="openjdk version &quot;23"/>
+                <contains string="${version-output}" substring="openjdk version &quot;24"/>
+            </or>
+        </condition>
+        <!-- Set javascript.available only when JavaScript IS available (Java < 15) -->
+        <!-- If not set, it means JavaScript is not available -->
+        <condition property="javascript.available">
+            <not><isset property="no.javascript.due.to.version"/></not>
         </condition>
     </target>
     <target name="-set-fallback-no-javascript">
