@@ -17,6 +17,8 @@ public class AccountingSystem extends Application {
                 DatabaseUtil.initializeDatabase();
                 // Migrate existing plain text passwords to hashed passwords
                 utils.PasswordMigration.migratePasswords();
+                // Encrypt existing payable amounts for security
+                utils.PayableEncryptionMigration.migratePayableAmounts();
             } catch (Exception dbEx) {
                 System.err.println("Database initialization error: " + dbEx.getMessage());
                 dbEx.printStackTrace();

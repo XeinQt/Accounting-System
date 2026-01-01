@@ -6,19 +6,19 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import models.Student;
 import models.SchoolYear;
+import java.io.File;
+import java.io.FileInputStream;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 public class StudentsController extends BaseController {
     
@@ -47,6 +47,7 @@ public class StudentsController extends BaseController {
     @FXML private ComboBox<String> yearField;
     
     @FXML private Button addBtn;
+    @FXML private Button importBtn;
     @FXML private Button updateBtn;
     @FXML private Button deleteBtn;
     @FXML private Button reactivateBtn;
@@ -59,6 +60,7 @@ public class StudentsController extends BaseController {
     @FXML private Button notificationsBtn;
     @FXML private Button schoolYearsBtn;
     @FXML private Button promissoryNotesBtn;
+    @FXML private Button reportsBtn;
     @FXML private Button settingsBtn;
     @FXML private Button logoutBtn;
     
@@ -74,7 +76,7 @@ public class StudentsController extends BaseController {
     private Student selectedStudent;
     
     // Cache for school years to avoid N+1 query problem
-    private Map<Integer, String> schoolYearCache = new HashMap<>();
+    private final Map<Integer, String> schoolYearCache = new HashMap<>();
     
     // Pagination variables
     private int currentPage = 1;
@@ -93,6 +95,7 @@ public class StudentsController extends BaseController {
         loadSchoolYears();
         loadSchoolYearCache(); // Load school year cache to avoid N+1 queries
         setupHeaderDropdowns();
+        autoSelectSemester(); // Automatically select semester based on current month
         loadStudents();
         loadFilters();
         setupEventHandlers();
@@ -386,6 +389,11 @@ public class StudentsController extends BaseController {
         // Setup semester dropdown with fixed options
         semesterCombo.getItems().clear();
         semesterCombo.getItems().addAll("1st Sem", "2nd Sem", "Summer Sem");
+        // Auto-select semester based on current month (if not already set)
+        if (semesterCombo.getValue() == null || semesterCombo.getValue().isEmpty()) {
+            String autoSemester = getSemesterByMonth(java.time.LocalDate.now().getMonth());
+            semesterCombo.setValue(autoSemester);
+        }
         
         // Setup year dropdown with fixed options
         yearField.getItems().clear();
@@ -428,11 +436,41 @@ public class StudentsController extends BaseController {
         // Setup header semester dropdown
         if (semesterComboBoxHeader != null) {
             semesterComboBoxHeader.getItems().addAll("1st Sem", "2nd Sem", "Summer Sem");
-            semesterComboBoxHeader.setValue("1st Sem");
+            // Auto-select will be done in autoSelectSemester() method
             semesterComboBoxHeader.setOnAction(e -> {
                 loadStudents();
             });
         }
+    }
+    
+    /**
+     * Automatically select semester based on current month
+     * 1st Sem: August, September, October, November, December
+     * 2nd Sem: January, February, March, April, May
+     * Summer: June, July
+     */
+    private void autoSelectSemester() {
+        String selectedSemester = utils.SemesterUtil.getSemesterByCurrentMonth();
+        
+        // Set for header dropdown
+        if (semesterComboBoxHeader != null) {
+            semesterComboBoxHeader.setValue(selectedSemester);
+        }
+        
+        // Set for form dropdown
+        if (semesterCombo != null && semesterCombo.getItems().isEmpty()) {
+            semesterCombo.getItems().addAll("1st Sem", "2nd Sem", "Summer Sem");
+        }
+        if (semesterCombo != null) {
+            semesterCombo.setValue(selectedSemester);
+        }
+    }
+    
+    /**
+     * Get semester based on month (delegates to utility class)
+     */
+    private String getSemesterByMonth(java.time.Month month) {
+        return utils.SemesterUtil.getSemesterByMonth(month);
     }
     
     private String getSelectedSemester() {
@@ -616,7 +654,9 @@ public class StudentsController extends BaseController {
         if (student.getSemester() != null && !student.getSemester().isEmpty()) {
             semesterCombo.setValue(student.getSemester());
         } else {
-            semesterCombo.setValue(null);
+            // Auto-select semester based on current month when clearing form
+        String autoSemester = getSemesterByMonth(java.time.LocalDate.now().getMonth());
+        semesterCombo.setValue(autoSemester);
         }
     }
     
@@ -1079,7 +1119,437 @@ public class StudentsController extends BaseController {
             }
         });
     }
+  
+   
+ 
     
+    /**
+     * Import students from Excel file
+     * Expected format:
+     * Column A: Student ID (required)
+     * Column B: First Name (required)
+     * Column C: Middle Name (optional)
+     * Column D: Last Name (required)
+     * Column E: Program (optional)
+     * Column F: Year (optional)
+     * Column G: School Year (optional, e.g., "2024-2025")
+  
+     */
+    private void importStudentsFromExcel(java.io.File file) {
+        try {
+            // Check if Apache POI is available
+            Class<?> workbookClass = Class.forName("org.apache.poi.ss.usermodel.Workbook");
+            Class<?> workbookFactoryClass = Class.forName("org.apache.poi.ss.usermodel.WorkbookFactory");
+            
+            // Use reflection to avoid compile-time dependency
+            java.lang.reflect.Method createMethod = workbookFactoryClass.getMethod("create", java.io.InputStream.class);
+            java.io.FileInputStream fis = new java.io.FileInputStream(file);
+            Object workbook = createMethod.invoke(null, fis);
+            
+            // Get first sheet
+            java.lang.reflect.Method getSheetAtMethod = workbookClass.getMethod("getSheetAt", int.class);
+            Object sheet = getSheetAtMethod.invoke(workbook, 0);
+            
+            // Get row iterator
+            java.lang.reflect.Method rowIteratorMethod = sheet.getClass().getMethod("iterator");
+            java.util.Iterator<?> rowIterator = (java.util.Iterator<?>) rowIteratorMethod.invoke(sheet);
+            
+            int rowNum = 0;
+            int successCount = 0;
+            int skipCount = 0;
+            int errorCount = 0;
+            java.util.List<String> errors = new java.util.ArrayList<>();
+            
+            // Get current school year and semester from form/header
+            Integer defaultSchoolYearId = utils.SessionManager.getSelectedSchoolYearId();
+            String defaultSemester = getSelectedSemester();
+            
+            // Get semester based on current month if not set
+            if (defaultSemester == null || defaultSemester.isEmpty()) {
+                defaultSemester = getSemesterByMonth(java.time.LocalDate.now().getMonth());
+            }
+            
+            while (rowIterator.hasNext()) {
+                rowNum++;
+                Object row = rowIterator.next();
+                
+                // Skip header row (first row)
+                if (rowNum == 1) {
+                    continue;
+                }
+                
+                try {
+                    // Get cell values using reflection
+                    java.lang.reflect.Method getCellMethod = row.getClass().getMethod("getCell", int.class);
+                    
+                    // Helper to get cell value as string
+                    // Prefer using POI's DataFormatter via reflection (handles formulas, numbers, dates)
+                    java.util.function.Function<Integer, String> getCellValue = (colIndex) -> {
+                        try {
+                            Object cell = getCellMethod.invoke(row, colIndex);
+                            if (cell == null) return "";
+
+                            try {
+                                Class<?> dataFormatterClass = Class.forName("org.apache.poi.ss.usermodel.DataFormatter");
+                                Object formatter = dataFormatterClass.getDeclaredConstructor().newInstance();
+                                java.lang.reflect.Method formatCellValueMethod = dataFormatterClass.getMethod("formatCellValue", Class.forName("org.apache.poi.ss.usermodel.Cell"));
+                                String formatted = (String) formatCellValueMethod.invoke(formatter, cell);
+                                return formatted != null ? formatted : "";
+                            } catch (ClassNotFoundException cnfe) {
+                                // DataFormatter not available; fallback to manual handling
+                            }
+
+                            // Fallback manual handling: try string then numeric then boolean
+                            try {
+                                java.lang.reflect.Method getStringCellValueMethod = cell.getClass().getMethod("getStringCellValue");
+                                Object val = getStringCellValueMethod.invoke(cell);
+                                return val != null ? val.toString() : "";
+                            } catch (Exception ex) {
+                                // ignore
+                            }
+
+                            try {
+                                java.lang.reflect.Method getNumericCellValueMethod = cell.getClass().getMethod("getNumericCellValue");
+                                double numValue = (Double) getNumericCellValueMethod.invoke(cell);
+                                if (numValue == Math.floor(numValue)) {
+                                    return String.valueOf((int) numValue);
+                                } else {
+                                    return String.valueOf(numValue);
+                                }
+                            } catch (Exception ex) {
+                                // ignore
+                            }
+
+                            try {
+                                java.lang.reflect.Method getBooleanCellValueMethod = cell.getClass().getMethod("getBooleanCellValue");
+                                Object b = getBooleanCellValueMethod.invoke(cell);
+                                return b != null ? b.toString() : "";
+                            } catch (Exception ex) {
+                                // ignore
+                            }
+
+                        } catch (Exception e) {
+                            return "";
+                        }
+                        return "";
+                    };
+                    
+                    // Read columns
+                    String studentId = getCellValue.apply(0).trim();
+                    String firstName = getCellValue.apply(1).trim();
+                    String middleName = getCellValue.apply(2).trim();
+                    String lastName = getCellValue.apply(3).trim();
+                    String program = getCellValue.apply(4).trim();
+                    String year = getCellValue.apply(5).trim();
+                    String schoolYearStr = getCellValue.apply(6).trim();
+                    String semester = getCellValue.apply(7).trim();
+
+                    // If year is numeric like "1", "2", convert to normalized form used by the app
+                    if (year.matches("^\\d+$")) {
+                        switch (year) {
+                            case "1": year = "1st Year"; break;
+                            case "2": year = "2nd Year"; break;
+                            case "3": year = "3rd Year"; break;
+                            case "4": year = "4th Year"; break;
+                            default: year = year + "th Year"; break;
+                        }
+                    }
+                    
+                    // Validate required fields
+                    if (studentId.isEmpty() || firstName.isEmpty() || lastName.isEmpty()) {
+                        skipCount++;
+                        errors.add("Row " + rowNum + ": Missing required fields (Student ID, First Name, or Last Name)");
+                        continue;
+                    }
+                    
+                    // Check if student already exists
+                    if (studentDAO.studentIdExists(studentId)) {
+                        skipCount++;
+                        errors.add("Row " + rowNum + ": Student ID " + studentId + " already exists");
+                        continue;
+                    }
+                    
+                    // Create student object
+                    Student student = new Student();
+                    student.setStudentNumber(studentId);
+                    student.setFirstName(firstName);
+                    student.setMiddleName(middleName.isEmpty() ? null : middleName);
+                    student.setLastName(lastName);
+                    student.setMajor(program.isEmpty() ? null : program);
+                    student.setYear(year.isEmpty() ? null : year);
+                    student.setSemester(semester.isEmpty() ? defaultSemester : semester);
+                    student.setStatus("active");
+                    
+                    // Set school year
+                    if (!schoolYearStr.isEmpty()) {
+                        SchoolYear sy = schoolYearDAO.getSchoolYearByRange(schoolYearStr);
+                        if (sy != null) {
+                            student.setSchoolYearId(sy.getSchoolYearId());
+                        } else {
+                            student.setSchoolYearId(defaultSchoolYearId);
+                        }
+                    } else {
+                        student.setSchoolYearId(defaultSchoolYearId);
+                    }
+                    
+                    // Add student
+                    if (studentDAO.addStudent(student)) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        errors.add("Row " + rowNum + ": Failed to add student " + studentId);
+                    }
+                    
+                } catch (Exception e) {
+                    errorCount++;
+                    errors.add("Row " + rowNum + ": " + e.getMessage());
+                }
+            }
+            
+            // Close resources
+            java.lang.reflect.Method closeMethod = workbookClass.getMethod("close");
+            closeMethod.invoke(workbook);
+            fis.close();
+            
+            // Show results
+            StringBuilder message = new StringBuilder();
+            message.append("Import completed!\n\n");
+            message.append("Successfully imported: ").append(successCount).append(" student(s)\n");
+            if (skipCount > 0) {
+                message.append("Skipped: ").append(skipCount).append(" student(s)\n");
+            }
+            if (errorCount > 0) {
+                message.append("Errors: ").append(errorCount).append(" student(s)\n");
+            }
+            
+            if (!errors.isEmpty() && errors.size() <= 10) {
+                message.append("\nDetails:\n");
+                for (String error : errors) {
+                    message.append("• ").append(error).append("\n");
+                }
+            } else if (errors.size() > 10) {
+                message.append("\n(First 10 errors shown, check console for all errors)");
+            }
+            
+            showAlert(Alert.AlertType.INFORMATION, "Import Results", message.toString());
+            
+            // Refresh the student list
+            loadStudents();
+            
+        } catch (ClassNotFoundException e) {
+            // Apache POI not found - attempt lightweight .xlsx parsing fallback (supports simple sharedStrings + sheet1.xml)
+            try {
+                importFromXlsxFallback(file);
+            } catch (Exception ex) {
+                showAlert(Alert.AlertType.ERROR, "Apache POI Not Found", 
+                    "Excel import requires Apache POI library or a simple .xlsx file.\n\n" +
+                    "Please add the following JAR files to your project if you need full Excel support:\n" +
+                    "- poi-X.X.X.jar\n" +
+                    "- poi-ooxml-X.X.X.jar\n" +
+                    "- poi-scratchpad-X.X.X.jar\n\n" +
+                    "See EXCEL_IMPORT_SETUP.md for instructions.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Import Error", 
+                "Failed to import Excel file:\n" + e.getMessage());
+        }
+    }
+    
+    /**
+     * Fallback XLSX parser for simple .xlsx files when Apache POI is not available.
+     * Supports sharedStrings and basic numeric/string cells on sheet1.xml.
+     */
+    private void importFromXlsxFallback(java.io.File file) throws Exception {
+        java.util.zip.ZipFile zip = new java.util.zip.ZipFile(file);
+        java.util.List<String> sharedStrings = new java.util.ArrayList<>();
+        java.util.zip.ZipEntry sstEntry = zip.getEntry("xl/sharedStrings.xml");
+        if (sstEntry != null) {
+            try (java.io.InputStream is = zip.getInputStream(sstEntry)) {
+                javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+                dbf.setNamespaceAware(false);
+                org.w3c.dom.Document doc = dbf.newDocumentBuilder().parse(is);
+                org.w3c.dom.NodeList siList = doc.getElementsByTagName("si");
+                for (int i = 0; i < siList.getLength(); i++) {
+                    org.w3c.dom.Node si = siList.item(i);
+                    StringBuilder sb = new StringBuilder();
+                    org.w3c.dom.NodeList texts = ((org.w3c.dom.Element) si).getElementsByTagName("t");
+                    for (int j = 0; j < texts.getLength(); j++) {
+                        org.w3c.dom.Node t = texts.item(j);
+                        sb.append(t.getTextContent());
+                    }
+                    sharedStrings.add(sb.toString());
+                }
+            }
+        }
+
+        java.util.zip.ZipEntry sheetEntry = zip.getEntry("xl/worksheets/sheet1.xml");
+        if (sheetEntry == null) {
+            zip.close();
+            throw new IllegalArgumentException("sheet1.xml not found in .xlsx");
+        }
+
+        int rowNum = 0;
+        int successCount = 0;
+        int skipCount = 0;
+        int errorCount = 0;
+        java.util.List<String> errors = new java.util.ArrayList<>();
+
+        Integer defaultSchoolYearId = utils.SessionManager.getSelectedSchoolYearId();
+        String defaultSemester = getSelectedSemester();
+        if (defaultSemester == null || defaultSemester.isEmpty()) {
+            defaultSemester = getSemesterByMonth(java.time.LocalDate.now().getMonth());
+        }
+
+        try (java.io.InputStream is = zip.getInputStream(sheetEntry)) {
+            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(false);
+            org.w3c.dom.Document doc = dbf.newDocumentBuilder().parse(is);
+            org.w3c.dom.NodeList rowList = doc.getElementsByTagName("row");
+            for (int r = 0; r < rowList.getLength(); r++) {
+                org.w3c.dom.Element rowElem = (org.w3c.dom.Element) rowList.item(r);
+                rowNum++;
+                if (rowNum == 1) continue; // skip header
+
+                try {
+                    java.util.Map<Integer, String> cellMap = new java.util.HashMap<>();
+                    org.w3c.dom.NodeList cList = rowElem.getElementsByTagName("c");
+                    for (int c = 0; c < cList.getLength(); c++) {
+                        org.w3c.dom.Element cElem = (org.w3c.dom.Element) cList.item(c);
+                        String rAttr = cElem.getAttribute("r");
+                        // column letters part
+                        StringBuilder letters = new StringBuilder();
+                        for (int i = 0; i < rAttr.length(); i++) {
+                            char ch = rAttr.charAt(i);
+                            if (Character.isLetter(ch)) letters.append(ch);
+                            else break;
+                        }
+                        int colIndex = 0;
+                        String colLetters = letters.toString();
+                        for (int i = 0; i < colLetters.length(); i++) {
+                            colIndex = colIndex * 26 + (colLetters.charAt(i) - 'A' + 1);
+                        }
+                        colIndex = colIndex - 1; // zero-based
+
+                        String tAttr = cElem.getAttribute("t");
+                        String value = "";
+                        org.w3c.dom.NodeList vList = cElem.getElementsByTagName("v");
+                        if (vList.getLength() > 0) {
+                            String vText = vList.item(0).getTextContent();
+                            if ("s".equals(tAttr)) {
+                                // shared string
+                                try {
+                                    int sstIndex = Integer.parseInt(vText);
+                                    if (sstIndex >= 0 && sstIndex < sharedStrings.size()) {
+                                        value = sharedStrings.get(sstIndex);
+                                    }
+                                } catch (Exception ex) {
+                                    value = "";
+                                }
+                            } else {
+                                value = vText != null ? vText : "";
+                            }
+                        } else {
+                            // inline string
+                            org.w3c.dom.NodeList isList = cElem.getElementsByTagName("is");
+                            if (isList.getLength() > 0) {
+                                org.w3c.dom.Element isElem = (org.w3c.dom.Element) isList.item(0);
+                                org.w3c.dom.NodeList tList = isElem.getElementsByTagName("t");
+                                if (tList.getLength() > 0) {
+                                    value = tList.item(0).getTextContent();
+                                }
+                            }
+                        }
+
+                        cellMap.put(colIndex, value != null ? value : "");
+                    }
+
+                    String studentId = cellMap.getOrDefault(0, "").trim();
+                    String firstName = cellMap.getOrDefault(1, "").trim();
+                    String middleName = cellMap.getOrDefault(2, "").trim();
+                    String lastName = cellMap.getOrDefault(3, "").trim();
+                    String program = cellMap.getOrDefault(4, "").trim();
+                    String year = cellMap.getOrDefault(5, "").trim();
+                    String schoolYearStr = cellMap.getOrDefault(6, "").trim();
+                    String semester = cellMap.getOrDefault(7, "").trim();
+
+                    if (year.matches("^\\d+$")) {
+                        switch (year) {
+                            case "1": year = "1st Year"; break;
+                            case "2": year = "2nd Year"; break;
+                            case "3": year = "3rd Year"; break;
+                            case "4": year = "4th Year"; break;
+                            default: year = year + "th Year"; break;
+                        }
+                    }
+
+                    if (studentId.isEmpty() || firstName.isEmpty() || lastName.isEmpty()) {
+                        skipCount++;
+                        errors.add("Row " + rowNum + ": Missing required fields (Student ID, First Name, or Last Name)");
+                        continue;
+                    }
+
+                    if (studentDAO.studentIdExists(studentId)) {
+                        skipCount++;
+                        errors.add("Row " + rowNum + ": Student ID " + studentId + " already exists");
+                        continue;
+                    }
+
+                    models.Student student = new models.Student();
+                    student.setStudentNumber(studentId);
+                    student.setFirstName(firstName);
+                    student.setMiddleName(middleName.isEmpty() ? null : middleName);
+                    student.setLastName(lastName);
+                    student.setMajor(program.isEmpty() ? null : program);
+                    student.setYear(year.isEmpty() ? null : year);
+                    student.setSemester(semester.isEmpty() ? defaultSemester : semester);
+                    student.setStatus("active");
+
+                    if (!schoolYearStr.isEmpty()) {
+                        models.SchoolYear sy = schoolYearDAO.getSchoolYearByRange(schoolYearStr);
+                        if (sy != null) {
+                            student.setSchoolYearId(sy.getSchoolYearId());
+                        } else {
+                            student.setSchoolYearId(defaultSchoolYearId);
+                        }
+                    } else {
+                        student.setSchoolYearId(defaultSchoolYearId);
+                    }
+
+                    if (studentDAO.addStudent(student)) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        errors.add("Row " + rowNum + ": Failed to add student " + studentId);
+                    }
+
+                } catch (Exception ex) {
+                    errorCount++;
+                    errors.add("Row " + rowNum + ": " + ex.getMessage());
+                }
+            }
+        }
+
+        zip.close();
+
+        StringBuilder message = new StringBuilder();
+        message.append("Import completed!\n\n");
+        message.append("Successfully imported: ").append(successCount).append(" student(s)\n");
+        if (skipCount > 0) message.append("Skipped: ").append(skipCount).append(" student(s)\n");
+        if (errorCount > 0) message.append("Errors: ").append(errorCount).append(" student(s)\n");
+        if (!errors.isEmpty() && errors.size() <= 10) {
+            message.append("\nDetails:\n");
+            for (String err : errors) {
+                message.append("• ").append(err).append("\n");
+            }
+        } else if (errors.size() > 10) {
+            message.append("\n(First 10 errors shown, check console for all errors)");
+        }
+
+        showAlert(Alert.AlertType.INFORMATION, "Import Results", message.toString());
+        loadStudents();
+    }
+
     @FXML
     private void handleClear() {
         clearForm();
@@ -1189,6 +1659,18 @@ public class StudentsController extends BaseController {
         if (currentPage < totalPages) {
             currentPage++;
             updatePagination();
+        }
+    }
+
+    @FXML
+    private void handleImport() {
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Select Excel File");
+        fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"));
+
+        File file = fileChooser.showOpenDialog((Stage) importBtn.getScene().getWindow());
+        if (file != null) {
+            importStudentsFromExcel(file);
         }
     }
 
@@ -1326,7 +1808,9 @@ public class StudentsController extends BaseController {
         majorField.setValue(null);
         yearField.setValue(null);
         schoolYearCombo.setValue(null);
-        semesterCombo.setValue(null);
+        // Auto-select semester based on current month when clearing form
+        String autoSemester = getSemesterByMonth(java.time.LocalDate.now().getMonth());
+        semesterCombo.setValue(autoSemester);
     }
     
     // Navigation methods
@@ -1365,6 +1849,10 @@ public class StudentsController extends BaseController {
         navigateToPage("promissorynotes.fxml", "DorPay - Promissory Notes", promissoryNotesBtn);
     }
     
+    @FXML
+    private void handleReports() {
+        navigateToPage("reports.fxml", "DorPay - Reports", reportsBtn);
+    }
     
     @FXML
     private void handleSettings() {

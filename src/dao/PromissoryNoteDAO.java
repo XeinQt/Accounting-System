@@ -8,6 +8,7 @@ import models.AcademicYearSemesterBalance;
 import models.PromissoryNote;
 import models.PromissoryNoteView;
 import utils.DatabaseUtil;
+import utils.PayableEncryptionUtil;
 
 public class PromissoryNoteDAO {
     
@@ -35,9 +36,10 @@ public class PromissoryNoteDAO {
                     "COALESCE(CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name), s.fullname) as student_name, " +
                     "s.major, " +
                     "s.year, " +
-                    "COALESCE(SUM(sp.downpayment_amount), 0) as total_amount, " +
-                    "COALESCE(SUM(sp.amount_paid), 0) as amount_paid, " +
-                    "COALESCE(SUM(sp.remaining_balance), 0) as remaining_balance, " +
+                    "GROUP_CONCAT(sp.downpayment_amount SEPARATOR '||') as downpayment_amounts, " +
+                    "GROUP_CONCAT(sp.amount_paid SEPARATOR '||') as amount_paid_values, " +
+                    "GROUP_CONCAT(sp.remaining_balance SEPARATOR '||') as remaining_balance_values, " +
+                    "MAX(s.student_id) as student_id_for_decrypt, " +
                     "MAX(d.due_date) as due_date, " +
                     "MAX(sp.status) as status " +
                     "FROM student s " +
@@ -69,7 +71,7 @@ public class PromissoryNoteDAO {
         sql += "GROUP BY s.student_id, s.student_number, s.first_name, s.middle_name, s.last_name, s.fullname, s.major, s.year " +
                "HAVING MAX(d.due_date) IS NOT NULL " +
                "AND MAX(d.due_date) <= CURDATE() " +
-               "AND COALESCE(SUM(sp.remaining_balance), 0) > 0 " +
+               "AND sp.remaining_balance IS NOT NULL AND sp.remaining_balance != '' " +
                "ORDER BY MAX(d.due_date) ASC, s.student_number ASC";
         
         try (Connection conn = DatabaseUtil.getConnection();
@@ -101,9 +103,50 @@ public class PromissoryNoteDAO {
                 view.setDepartment(null); // Not in database schema
                 view.setCollege(null); // Not in database schema
                 
-                double totalAmount = rs.getDouble("total_amount");
-                double amountPaid = rs.getDouble("amount_paid");
-                double remainingBalance = rs.getDouble("remaining_balance");
+                // Decrypt and sum amounts
+                int studentId = rs.getInt("student_id_for_decrypt");
+                double totalAmount = 0;
+                double amountPaid = 0;
+                double remainingBalance = 0;
+                
+                try {
+                    String downpaymentAmountsStr = rs.getString("downpayment_amounts");
+                    if (downpaymentAmountsStr != null && !downpaymentAmountsStr.isEmpty()) {
+                        String[] amounts = downpaymentAmountsStr.split("\\|\\|");
+                        for (String amount : amounts) {
+                            if (amount != null && !amount.trim().isEmpty()) {
+                                totalAmount += PayableEncryptionUtil.decryptAmount(amount, studentId);
+                            }
+                        }
+                    }
+                    
+                    String amountPaidValuesStr = rs.getString("amount_paid_values");
+                    if (amountPaidValuesStr != null && !amountPaidValuesStr.isEmpty()) {
+                        String[] amounts = amountPaidValuesStr.split("\\|\\|");
+                        for (String amount : amounts) {
+                            if (amount != null && !amount.trim().isEmpty()) {
+                                amountPaid += PayableEncryptionUtil.decryptAmount(amount, studentId);
+                            }
+                        }
+                    }
+                    
+                    String remainingBalanceValuesStr = rs.getString("remaining_balance_values");
+                    if (remainingBalanceValuesStr != null && !remainingBalanceValuesStr.isEmpty()) {
+                        String[] amounts = remainingBalanceValuesStr.split("\\|\\|");
+                        for (String amount : amounts) {
+                            if (amount != null && !amount.trim().isEmpty()) {
+                                remainingBalance += PayableEncryptionUtil.decryptAmount(amount, studentId);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error decrypting amounts in PromissoryNoteDAO: " + e.getMessage());
+                }
+                
+                // Filter out records with zero remaining balance (since we can't filter in SQL)
+                if (remainingBalance <= 0) {
+                    continue;
+                }
                 
                 // Use downpayment_amount as total (what student owes)
                 view.setTotalAmount(totalAmount);
@@ -206,7 +249,8 @@ public class PromissoryNoteDAO {
                     "  WHEN sem.summer_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) THEN 'Summer' " +
                     "  ELSE NULL " +
                     "END as semester, " +
-                    "COALESCE(SUM(sem.first_sem_amount + sem.second_sem_amount + sem.summer_sem_amount) - COALESCE(SUM(sp.amount_paid), 0), SUM(sem.first_sem_amount + sem.second_sem_amount + sem.summer_sem_amount)) as remaining_balance " +
+                    "GROUP_CONCAT(sp.amount_paid SEPARATOR '||') as amount_paid_values, " +
+                    "SUM(sem.first_sem_amount + sem.second_sem_amount + sem.summer_sem_amount) as total_semester_amount " +
                     "FROM student s " +
                     "INNER JOIN belong b ON s.student_id = b.student_id " +
                     "INNER JOIN semester sem ON b.semester_id = sem.semester_id " +
@@ -221,7 +265,7 @@ public class PromissoryNoteDAO {
                     "    WHEN sem.summer_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) THEN 'Summer' " +
                     "    ELSE NULL " +
                     "  END " +
-                    "HAVING remaining_balance > 0 " +
+                    "HAVING total_semester_amount > 0 " +
                     "ORDER BY sy.year_range, semester";
         
         try (Connection conn = DatabaseUtil.getConnection();
@@ -233,7 +277,24 @@ public class PromissoryNoteDAO {
             while (rs.next()) {
                 String academicYear = rs.getString("academic_year");
                 String semester = rs.getString("semester");
-                double amount = rs.getDouble("remaining_balance");
+                
+                // Calculate remaining balance: total_semester_amount - sum of encrypted amount_paid
+                double totalSemesterAmount = rs.getDouble("total_semester_amount");
+                double totalAmountPaid = 0;
+                try {
+                    String amountPaidValuesStr = rs.getString("amount_paid_values");
+                    if (amountPaidValuesStr != null && !amountPaidValuesStr.isEmpty()) {
+                        String[] amounts = amountPaidValuesStr.split("\\|\\|");
+                        for (String amount : amounts) {
+                            if (amount != null && !amount.trim().isEmpty()) {
+                                totalAmountPaid += PayableEncryptionUtil.decryptAmount(amount, studentId);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error decrypting amount_paid in getUnpaidBalancesByAcademicYearAndSemester: " + e.getMessage());
+                }
+                double amount = totalSemesterAmount - totalAmountPaid;
                 
                 // Extract year from year_range (e.g., "2023-2024" -> "2024")
                 if (academicYear != null && academicYear.contains("-")) {

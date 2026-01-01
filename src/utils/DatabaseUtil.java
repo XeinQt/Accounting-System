@@ -2,6 +2,7 @@ package utils;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -183,17 +184,36 @@ public class DatabaseUtil {
                         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                 
                 // Create STUDENT_PAYABLES table
+                // Amount columns are VARCHAR to store encrypted values
                 stmt.execute("CREATE TABLE IF NOT EXISTS student_payables (" +
                         "payable_id INT AUTO_INCREMENT PRIMARY KEY," +
                         "belong_id INT NOT NULL," +
-                        "downpayment_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00," +
-                        "amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0.00," +
-                        "remaining_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00," +
+                        "downpayment_amount VARCHAR(255) NOT NULL DEFAULT '0.00'," +
+                        "amount_paid VARCHAR(255) NOT NULL DEFAULT '0.00'," +
+                        "remaining_balance VARCHAR(255) NOT NULL DEFAULT '0.00'," +
                         "status ENUM('UNPAID', 'PARTIAL', 'PAID', 'OVERDUE') DEFAULT 'UNPAID'," +
                         "duedate_id INT," +
                         "FOREIGN KEY (belong_id) REFERENCES belong(belong_id) ON DELETE CASCADE," +
                         "FOREIGN KEY (duedate_id) REFERENCES duedate(duedate_id) ON DELETE SET NULL" +
                         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                
+                // Migrate existing DECIMAL columns to VARCHAR if they exist
+                // This handles the case where the table was created with DECIMAL columns
+                try {
+                    // Check if columns are DECIMAL type and need migration
+                    java.sql.DatabaseMetaData meta = conn.getMetaData();
+                    ResultSet columns = meta.getColumns(null, null, "student_payables", "downpayment_amount");
+                    if (columns.next()) {
+                        String typeName = columns.getString("TYPE_NAME");
+                        if ("DECIMAL".equalsIgnoreCase(typeName) || "NUMERIC".equalsIgnoreCase(typeName)) {
+                            // Need to migrate: DECIMAL -> VARCHAR
+                            // This will be handled by PayableEncryptionMigration
+                            System.out.println("Note: student_payables table has DECIMAL columns that need migration to encrypted VARCHAR");
+                        }
+                    }
+                } catch (SQLException e) {
+                    // Ignore - table might not exist yet or columns might already be VARCHAR
+                }
                 
                 // Insert default admin user if not exists (password will be hashed)
                 // Note: Password will be hashed on first login or can be updated via migration script

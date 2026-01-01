@@ -17,6 +17,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 import models.Payment;
+import models.PaymentView;
 import utils.SessionManager;
 
 import java.text.DecimalFormat;
@@ -36,9 +37,9 @@ public class DashboardController extends BaseController {
     @FXML private CategoryAxis monthAxis;
     @FXML private NumberAxis amountAxis;
     
-    @FXML private TableView<Payment> topPayersTable;
-    @FXML private TableColumn<Payment, String> payerNameColumn;
-    @FXML private TableColumn<Payment, String> payerAmountColumn;
+    @FXML private TableView<PaymentView> dueDatePaymentsTable;
+    @FXML private TableColumn<PaymentView, String> dueDateNameColumn;
+    @FXML private TableColumn<PaymentView, String> dueDateColumn;
     
     @FXML private TableView<Payment> latestPaymentsTable;
     @FXML private TableColumn<Payment, String> studentIdColumn;
@@ -58,6 +59,7 @@ public class DashboardController extends BaseController {
     @FXML private Button notificationsBtn;
     @FXML private Button schoolYearsBtn;
     @FXML private Button promissoryNotesBtn;
+    @FXML private Button reportsBtn;
     @FXML private Button settingsBtn;
     @FXML private Button logoutBtn;
     
@@ -78,17 +80,17 @@ public class DashboardController extends BaseController {
         setupSidebarButtons();
         loadSummaryCards();
         loadChart();
-        loadTopPayers();
+        loadDueDatePayments();
         loadLatestPayments();
         setupTableColumns();
         
         // Apply CSS stylesheet to the scene after it's loaded
         javafx.application.Platform.runLater(() -> {
             try {
-                if (topPayersTable.getScene() != null) {
+                if (dueDatePaymentsTable.getScene() != null) {
                     java.net.URL cssUrl = getClass().getResource("/styles/dashboard.css");
-                    if (cssUrl != null && !topPayersTable.getScene().getStylesheets().contains(cssUrl.toExternalForm())) {
-                        topPayersTable.getScene().getStylesheets().add(cssUrl.toExternalForm());
+                    if (cssUrl != null && !dueDatePaymentsTable.getScene().getStylesheets().contains(cssUrl.toExternalForm())) {
+                        dueDatePaymentsTable.getScene().getStylesheets().add(cssUrl.toExternalForm());
                     }
                 }
             } catch (Exception e) {
@@ -119,11 +121,13 @@ public class DashboardController extends BaseController {
     
     private void setupSemesterComboBox() {
         semesterComboBox.getItems().addAll("All Semesters", "1st Sem", "2nd Sem", "Summer Sem");
-        semesterComboBox.setValue("All Semesters");
+        // Auto-select semester based on current month
+        String autoSemester = utils.SemesterUtil.getSemesterByCurrentMonth();
+        semesterComboBox.setValue(autoSemester);
         semesterComboBox.setOnAction(e -> {
             loadSummaryCards();
             loadChart();
-            loadTopPayers();
+            loadDueDatePayments();
             loadLatestPayments();
         });
     }
@@ -141,7 +145,7 @@ public class DashboardController extends BaseController {
         // Reload all data when school year changes
         loadSummaryCards();
         loadChart();
-        loadTopPayers();
+        loadDueDatePayments();
         loadLatestPayments();
     }
 
@@ -222,15 +226,35 @@ public class DashboardController extends BaseController {
         }
     }
 
-    private void loadTopPayers() {
+    private void loadDueDatePayments() {
         Integer schoolYearId = SessionManager.getSelectedSchoolYearId();
         String semester = getSelectedSemester();
-        List<Payment> topPayers = paymentDAO.getTopPayers(5, schoolYearId, semester);
-        ObservableList<Payment> data = FXCollections.observableArrayList(topPayers);
+        // Get students with due dates (upcoming and overdue)
+        List<PaymentView> dueDatePayments = paymentDAO.getNotifications(schoolYearId, false);
         
-        payerNameColumn.setCellValueFactory(new PropertyValueFactory<>("studentName"));
-        payerNameColumn.setCellFactory(column -> {
-            javafx.scene.control.TableCell<Payment, String> cell = new javafx.scene.control.TableCell<Payment, String>() {
+        // Filter by semester if specified
+        if (semester != null && !semester.isEmpty() && !semester.equals("All Semesters")) {
+            // Note: Semester filtering would need to be added to getStudentsWithDueDates method
+            // For now, we'll just limit to 5 most urgent (sorted by due date)
+        }
+        
+        // Sort by due date (earliest first) and limit to 5
+        dueDatePayments.sort((a, b) -> {
+            if (a.getDueDate() == null && b.getDueDate() == null) return 0;
+            if (a.getDueDate() == null) return 1;
+            if (b.getDueDate() == null) return -1;
+            return a.getDueDate().compareTo(b.getDueDate());
+        });
+        
+        if (dueDatePayments.size() > 5) {
+            dueDatePayments = dueDatePayments.subList(0, 5);
+        }
+        
+        ObservableList<PaymentView> data = FXCollections.observableArrayList(dueDatePayments);
+        
+        dueDateNameColumn.setCellValueFactory(new PropertyValueFactory<>("studentName"));
+        dueDateNameColumn.setCellFactory(column -> {
+            javafx.scene.control.TableCell<PaymentView, String> cell = new javafx.scene.control.TableCell<PaymentView, String>() {
                 @Override
                 protected void updateItem(String item, boolean empty) {
                     super.updateItem(item, empty);
@@ -246,29 +270,47 @@ public class DashboardController extends BaseController {
             return cell;
         });
         
-        payerAmountColumn.setCellValueFactory(cellData -> {
-            Payment payment = cellData.getValue();
-            return new javafx.beans.property.SimpleStringProperty(currencyFormat.format(payment.getAmount()));
+        dueDateColumn.setCellValueFactory(cellData -> {
+            PaymentView payment = cellData.getValue();
+            if (payment != null && payment.getDueDate() != null) {
+                return new javafx.beans.property.SimpleStringProperty(payment.getDueDateFormatted());
+            }
+            return new javafx.beans.property.SimpleStringProperty("No due date");
         });
-        payerAmountColumn.setCellFactory(column -> {
-            javafx.scene.control.TableCell<Payment, String> cell = new javafx.scene.control.TableCell<Payment, String>() {
+        
+        dueDateColumn.setCellFactory(column -> {
+            javafx.scene.control.TableCell<PaymentView, String> cell = new javafx.scene.control.TableCell<PaymentView, String>() {
                 @Override
                 protected void updateItem(String item, boolean empty) {
                     super.updateItem(item, empty);
                     if (empty || item == null) {
                         setText(null);
                         setGraphic(null);
+                        setStyle("");
                     } else {
                         setText(item);
-                        setStyle("-fx-alignment: CENTER_RIGHT; -fx-padding: 0 15 0 0; -fx-font-weight: bold; -fx-text-fill: #5a0bb4;");
+                        // Get the row item to check due date for color coding
+                        PaymentView payment = getTableRow().getItem();
+                        if (payment != null && payment.getDueDate() != null) {
+                            java.time.LocalDate today = java.time.LocalDate.now();
+                            if (payment.getDueDate().isBefore(today)) {
+                                setStyle("-fx-alignment: CENTER; -fx-padding: 0 15 0 0; -fx-font-weight: bold; -fx-text-fill: #F44336;");
+                            } else if (payment.getDueDate().isBefore(today.plusDays(7))) {
+                                setStyle("-fx-alignment: CENTER; -fx-padding: 0 15 0 0; -fx-font-weight: bold; -fx-text-fill: #FF9800;");
+                            } else {
+                                setStyle("-fx-alignment: CENTER; -fx-padding: 0 15 0 0; -fx-font-weight: bold; -fx-text-fill: #333;");
+                            }
+                        } else {
+                            setStyle("-fx-alignment: CENTER; -fx-padding: 0 15 0 0; -fx-text-fill: #666;");
+                        }
                     }
                 }
             };
             return cell;
         });
         
-        topPayersTable.setItems(data);
-        topPayersTable.setPlaceholder(new Label("No payment data available"));
+        dueDatePaymentsTable.setItems(data);
+        dueDatePaymentsTable.setPlaceholder(new Label("No due date payments available"));
     }
 
     private void loadLatestPayments() {
@@ -351,6 +393,10 @@ public class DashboardController extends BaseController {
         navigateToPage("promissorynotes.fxml", "DorPay - Promissory Notes", promissoryNotesBtn);
     }
 
+    @FXML
+    private void handleReports() {
+        navigateToPage("reports.fxml", "DorPay - Reports", reportsBtn);
+    }
 
     @FXML
     private void handleSettings() {

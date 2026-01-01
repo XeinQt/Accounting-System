@@ -38,6 +38,7 @@ public class NotificationsController extends BaseController {
     @FXML private Button notificationsBtn;
     @FXML private Button schoolYearsBtn;
     @FXML private Button promissoryNotesBtn;
+    @FXML private Button reportsBtn;
     @FXML private Button settingsBtn;
     @FXML private Button logoutBtn;
     
@@ -152,6 +153,11 @@ public class NotificationsController extends BaseController {
     @FXML
     private void handlePromissoryNotes() {
         navigateToPage("promissorynotes.fxml", "DorPay - Promissory Notes", promissoryNotesBtn);
+    }
+    
+    @FXML
+    private void handleReports() {
+        navigateToPage("reports.fxml", "DorPay - Reports", reportsBtn);
     }
     
     @FXML

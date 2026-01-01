@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import models.PaymentView;
 import utils.DatabaseUtil;
+import utils.PayableEncryptionUtil;
 
 public class PaymentDAO {
     
@@ -40,8 +41,8 @@ public class PaymentDAO {
                     "COALESCE(MAX(CASE WHEN sem.first_sem_amount > 0 AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) AND (sem.summer_sem_amount = 0 OR sem.summer_sem_amount IS NULL) THEN sem.first_sem_amount ELSE 0 END), 0) as first_sem, " +
                     "COALESCE(MAX(CASE WHEN sem.second_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.summer_sem_amount = 0 OR sem.summer_sem_amount IS NULL) THEN sem.second_sem_amount ELSE 0 END), 0) as second_sem, " +
                     "COALESCE(MAX(CASE WHEN sem.summer_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) THEN sem.summer_sem_amount ELSE 0 END), 0) as summer_sem, " +
-                    "COALESCE(SUM(sp.downpayment_amount), 0) as total_downpayment, " +
-                    "COALESCE(SUM(sp.amount_paid), 0) as amount_paid, " +
+                    "GROUP_CONCAT(sp.downpayment_amount SEPARATOR '||') as downpayment_amounts, " +
+                    "GROUP_CONCAT(sp.amount_paid SEPARATOR '||') as amount_paid_values, " +
                     "MAX(d.due_date) as due_date, " +
                     "MAX(sp.status) as status " +
                     "FROM student s " +
@@ -91,13 +92,41 @@ public class PaymentDAO {
                 double total = view.getFirstSemAmount() + view.getSecondSemAmount() + view.getSummerSemAmount();
                 view.setTotalAmount(total);
                 
-                // Get actual down payment from database - only show if admin has entered it
-                double totalDownPayment = rs.getDouble("total_downpayment");
-                // Only set down payment if it's been explicitly entered (not auto-calculated)
-                // If totalDownPayment is 0 or NULL, it means admin hasn't entered it yet
+                // Decrypt and sum downpayment amounts
+                double totalDownPayment = 0;
+                try {
+                    String downpaymentAmountsStr = rs.getString("downpayment_amounts");
+                    if (downpaymentAmountsStr != null && !downpaymentAmountsStr.isEmpty()) {
+                        String[] amounts = downpaymentAmountsStr.split("\\|\\|");
+                        int studentId = rs.getInt("student_id");
+                        for (String amount : amounts) {
+                            if (amount != null && !amount.trim().isEmpty()) {
+                                totalDownPayment += PayableEncryptionUtil.decryptAmount(amount, studentId);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error decrypting downpayment amounts: " + e.getMessage());
+                }
                 view.setDownPayment(totalDownPayment > 0 ? totalDownPayment : 0);
                 
-                view.setAmountPaid(rs.getDouble("amount_paid"));
+                // Decrypt and sum amount_paid values
+                double totalAmountPaid = 0;
+                try {
+                    String amountPaidValuesStr = rs.getString("amount_paid_values");
+                    if (amountPaidValuesStr != null && !amountPaidValuesStr.isEmpty()) {
+                        String[] amounts = amountPaidValuesStr.split("\\|\\|");
+                        int studentId = rs.getInt("student_id");
+                        for (String amount : amounts) {
+                            if (amount != null && !amount.trim().isEmpty()) {
+                                totalAmountPaid += PayableEncryptionUtil.decryptAmount(amount, studentId);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error decrypting amount_paid values: " + e.getMessage());
+                }
+                view.setAmountPaid(totalAmountPaid);
                 
                 java.sql.Date dueDateSql = rs.getDate("due_date");
                 if (dueDateSql != null) {
@@ -137,8 +166,8 @@ public class PaymentDAO {
                     "COALESCE(MAX(CASE WHEN sem.first_sem_amount > 0 AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) AND (sem.summer_sem_amount = 0 OR sem.summer_sem_amount IS NULL) THEN sem.first_sem_amount ELSE 0 END), 0) as first_sem, " +
                     "COALESCE(MAX(CASE WHEN sem.second_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.summer_sem_amount = 0 OR sem.summer_sem_amount IS NULL) THEN sem.second_sem_amount ELSE 0 END), 0) as second_sem, " +
                     "COALESCE(MAX(CASE WHEN sem.summer_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) THEN sem.summer_sem_amount ELSE 0 END), 0) as summer_sem, " +
-                    "COALESCE(SUM(sp.downpayment_amount), 0) as total_downpayment, " +
-                    "COALESCE(SUM(sp.amount_paid), 0) as amount_paid, " +
+                    "GROUP_CONCAT(sp.downpayment_amount SEPARATOR '||') as downpayment_amounts, " +
+                    "GROUP_CONCAT(sp.amount_paid SEPARATOR '||') as amount_paid_values, " +
                     "MAX(d.due_date) as due_date, " +
                     "MAX(sp.status) as status " +
                     "FROM student s " +
@@ -173,13 +202,39 @@ public class PaymentDAO {
                 double total = view.getFirstSemAmount() + view.getSecondSemAmount() + view.getSummerSemAmount();
                 view.setTotalAmount(total);
                 
-                // Get actual down payment from database - only show if admin has entered it
-                double totalDownPayment = rs.getDouble("total_downpayment");
-                // Only set down payment if it's been explicitly entered (not auto-calculated)
-                // If totalDownPayment is 0 or NULL, it means admin hasn't entered it yet
+                // Decrypt and sum downpayment amounts (use method parameter studentId)
+                double totalDownPayment = 0;
+                try {
+                    String downpaymentAmountsStr = rs.getString("downpayment_amounts");
+                    if (downpaymentAmountsStr != null && !downpaymentAmountsStr.isEmpty()) {
+                        String[] amounts = downpaymentAmountsStr.split("\\|\\|");
+                        for (String amount : amounts) {
+                            if (amount != null && !amount.trim().isEmpty()) {
+                                totalDownPayment += PayableEncryptionUtil.decryptAmount(amount, studentId);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error decrypting downpayment amounts: " + e.getMessage());
+                }
                 view.setDownPayment(totalDownPayment > 0 ? totalDownPayment : 0);
                 
-                view.setAmountPaid(rs.getDouble("amount_paid"));
+                // Decrypt and sum amount_paid values (use method parameter studentId)
+                double totalAmountPaid = 0;
+                try {
+                    String amountPaidValuesStr = rs.getString("amount_paid_values");
+                    if (amountPaidValuesStr != null && !amountPaidValuesStr.isEmpty()) {
+                        String[] amounts = amountPaidValuesStr.split("\\|\\|");
+                        for (String amount : amounts) {
+                            if (amount != null && !amount.trim().isEmpty()) {
+                                totalAmountPaid += PayableEncryptionUtil.decryptAmount(amount, studentId);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error decrypting amount_paid values: " + e.getMessage());
+                }
+                view.setAmountPaid(totalAmountPaid);
                 
                 java.sql.Date dueDateSql = rs.getDate("due_date");
                 if (dueDateSql != null) {
@@ -279,7 +334,7 @@ public class PaymentDAO {
                 // Update ALL payable records for this student in this school year
                 // Distribute the amount_paid proportionally or update all with the same amount
                 // For now, we'll update all payables with the same amount_paid (total divided by count)
-                String getPayablesSql = "SELECT sp.payable_id, sp.belong_id, sp.downpayment_amount, sp.amount_paid " +
+                String getPayablesSql = "SELECT sp.payable_id, sp.belong_id, sp.downpayment_amount, sp.amount_paid, b.student_id " +
                                        "FROM student_payables sp " +
                                        "INNER JOIN belong b ON sp.belong_id = b.belong_id " +
                                        "WHERE b.student_id = ? " +
@@ -300,7 +355,17 @@ public class PaymentDAO {
                     while (rs.next()) {
                         payableIds.add(rs.getInt("payable_id"));
                         belongIdsForPayables.add(rs.getInt("belong_id"));
-                        payableAmounts.add(rs.getDouble("downpayment_amount"));
+                        // Decrypt downpayment from encrypted VARCHAR column
+                        double downpayment = 0;
+                        try {
+                            String encrypted = rs.getString("downpayment_amount");
+                            if (encrypted != null && !encrypted.isEmpty()) {
+                                downpayment = PayableEncryptionUtil.decryptAmount(encrypted, rs.getInt("student_id"));
+                            }
+                        } catch (Exception e) {
+                            System.err.println("Error decrypting downpayment_amount: " + e.getMessage());
+                        }
+                        payableAmounts.add(downpayment);
                     }
                 }
                 
@@ -321,14 +386,17 @@ public class PaymentDAO {
                         }
                     }
                     
-                    // Create new payable
+                    // Create new payable with encrypted amounts
                     double remainingBalance = Math.max(semesterAmount - amountPaid, 0);
+                    String encryptedDownpayment = PayableEncryptionUtil.encryptAmount(semesterAmount, studentId);
+                    String encryptedAmountPaid = PayableEncryptionUtil.encryptAmount(amountPaid, studentId);
+                    String encryptedRemaining = PayableEncryptionUtil.encryptAmount(remainingBalance, studentId);
                     String insertPayableSql = "INSERT INTO student_payables (belong_id, downpayment_amount, amount_paid, remaining_balance, status) VALUES (?, ?, ?, ?, ?)";
                     try (PreparedStatement pstmt = conn.prepareStatement(insertPayableSql, PreparedStatement.RETURN_GENERATED_KEYS)) {
                         pstmt.setInt(1, firstBelongId);
-                        pstmt.setDouble(2, semesterAmount);
-                        pstmt.setDouble(3, amountPaid);
-                        pstmt.setDouble(4, remainingBalance);
+                        pstmt.setString(2, encryptedDownpayment);
+                        pstmt.setString(3, encryptedAmountPaid);
+                        pstmt.setString(4, encryptedRemaining);
                         pstmt.setString(5, status);
                         pstmt.executeUpdate();
                         ResultSet rs = pstmt.getGeneratedKeys();
@@ -370,11 +438,14 @@ public class PaymentDAO {
                         payableStatus = "UNPAID";
                     }
                     
-                    // Update this payable
+                    // Update this payable - encrypt amounts and store directly in columns
+                    String encryptedAmountPaid = PayableEncryptionUtil.encryptAmount(proportionalAmountPaid, studentId);
+                    String encryptedRemaining = PayableEncryptionUtil.encryptAmount(remainingBalance, studentId);
+                    
                     String updatePayableSql = "UPDATE student_payables SET amount_paid = ?, remaining_balance = ?, status = ? WHERE payable_id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(updatePayableSql)) {
-                        pstmt.setDouble(1, proportionalAmountPaid);
-                        pstmt.setDouble(2, remainingBalance);
+                        pstmt.setString(1, encryptedAmountPaid);
+                        pstmt.setString(2, encryptedRemaining);
                         pstmt.setString(3, payableStatus);
                         pstmt.setInt(4, payableId);
                         pstmt.executeUpdate();
@@ -515,18 +586,23 @@ public class PaymentDAO {
                     int payableId = payableIds.get(i);
                     double totalPayable = totalPayables.get(i);
                     
+                    // Encrypt zero amount and remaining balance
+                    String encryptedAmountPaid = PayableEncryptionUtil.encryptAmount(0.0, studentId);
+                    String encryptedRemaining = PayableEncryptionUtil.encryptAmount(totalPayable, studentId);
+                    
                     // Reset amount_paid to 0, recalculate remaining_balance from total payables
                     // remaining_balance = total payables - amount_paid (which will be 0)
                     String updateSql = "UPDATE student_payables " +
-                                      "SET amount_paid = 0, " +
+                                      "SET amount_paid = ?, " +
                                       "    remaining_balance = ?, " +
                                       "    status = 'UNPAID', " +
                                       "    duedate_id = NULL " +
                                       "WHERE payable_id = ?";
                     
                     try (PreparedStatement pstmt = conn.prepareStatement(updateSql)) {
-                        pstmt.setDouble(1, totalPayable); // remaining_balance = total payables (since amount_paid = 0)
-                        pstmt.setInt(2, payableId);
+                        pstmt.setString(1, encryptedAmountPaid);
+                        pstmt.setString(2, encryptedRemaining);
+                        pstmt.setInt(3, payableId);
                         pstmt.executeUpdate();
                     }
                 }
@@ -943,8 +1019,8 @@ public class PaymentDAO {
                     "COALESCE(MAX(CASE WHEN sem.first_sem_amount > 0 AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) AND (sem.summer_sem_amount = 0 OR sem.summer_sem_amount IS NULL) THEN sem.first_sem_amount ELSE 0 END), 0) as first_sem, " +
                     "COALESCE(MAX(CASE WHEN sem.second_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.summer_sem_amount = 0 OR sem.summer_sem_amount IS NULL) THEN sem.second_sem_amount ELSE 0 END), 0) as second_sem, " +
                     "COALESCE(MAX(CASE WHEN sem.summer_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) THEN sem.summer_sem_amount ELSE 0 END), 0) as summer_sem, " +
-                    "COALESCE(SUM(sp.downpayment_amount), 0) as total_downpayment, " +
-                    "COALESCE(SUM(sp.amount_paid), 0) as amount_paid, " +
+                    "GROUP_CONCAT(sp.downpayment_amount SEPARATOR '||') as downpayment_amounts, " +
+                    "GROUP_CONCAT(sp.amount_paid SEPARATOR '||') as amount_paid_values, " +
                     "MAX(d.due_date) as due_date, " +
                     "MAX(sp.status) as status " +
                     "FROM student s " +

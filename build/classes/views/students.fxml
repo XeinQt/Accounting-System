@@ -72,6 +72,11 @@
                         <SVGPath content="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" fill="#7B76F1" />
                      </graphic>
                   </Button>
+                  <Button fx:id="reportsBtn" alignment="CENTER_LEFT" contentDisplay="LEFT" onAction="#handleReports" prefHeight="42.0" prefWidth="210.0" style="-fx-background-color: transparent; -fx-text-fill: #333; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14; -fx-padding: 0 0 0 15;" text="Reports">
+                     <graphic>
+                        <SVGPath content="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="#7B76F1" />
+                     </graphic>
+                  </Button>
                </children>
             </VBox>
             
@@ -155,7 +160,7 @@
             <ScrollPane fitToWidth="true" hbarPolicy="NEVER" pannable="true" style="-fx-background-color: transparent; -fx-background: transparent;" vbarPolicy="AS_NEEDED" AnchorPane.bottomAnchor="20.0" AnchorPane.leftAnchor="30.0" AnchorPane.rightAnchor="30.0" AnchorPane.topAnchor="150.0">
                <content>
                   <VBox spacing="20.0">
-                     <children>
+               <children>
                   <!-- List of Students Table -->
                   <VBox spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20;" VBox.vgrow="ALWAYS">
                      <children>
@@ -273,6 +278,7 @@
                         <HBox alignment="CENTER_LEFT" spacing="8.0" style="-fx-padding: 10 0 0 0;">
                            <children>
                               <Button fx:id="addBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleAdd" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Add" />
+                              <Button fx:id="importBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleImport" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #9C27B0; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Import" />
                               <Button fx:id="updateBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleUpdate" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #FF9800; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Update" />
                               <Button fx:id="deleteBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleDelete" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #F44336; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Deactivate" />
                               <Button fx:id="reactivateBtn" maxWidth="110.0" minWidth="110.0" onAction="#handleReactivate" prefHeight="48.0" prefWidth="110.0" style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-size: 12; -fx-font-weight: bold;" text="Reactivate" />
@@ -281,8 +287,8 @@
                         </HBox>
                      </children>
                   </VBox>
-                     </children>
-                  </VBox>
+               </children>
+            </VBox>
                </content>
             </ScrollPane>
          </children>

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import models.StudentPayableView;
 import utils.DatabaseUtil;
+import utils.PayableEncryptionUtil;
 
 public class PayableDAO {
     
@@ -39,10 +40,8 @@ public class PayableDAO {
                         "  WHEN sem.summer_sem_amount > 0 AND (sem.first_sem_amount = 0 OR sem.first_sem_amount IS NULL) AND (sem.second_sem_amount = 0 OR sem.second_sem_amount IS NULL) THEN 'Summer Sem' " +
                         "  ELSE '' " +
                         "END as semester_name, " +
-                        "COALESCE(MAX(sp.downpayment_amount), 0) AS first_sem_amount, " +
-                        "COALESCE(MAX(sp.downpayment_amount), 0) AS second_sem_amount, " +
-                        "COALESCE(MAX(sp.downpayment_amount), 0) AS summer_sem_amount, " +
-                        "MAX(sp.downpayment_amount) as downpayment_amount, MAX(d.due_date) as due_date " +
+                        "MAX(sp.downpayment_amount) as downpayment_amount, " +
+                        "MAX(d.due_date) as due_date " +
                         "FROM student s " +
                         "INNER JOIN belong b ON s.student_id = b.student_id " +
                         "INNER JOIN semester sem ON b.semester_id = sem.semester_id " +
@@ -50,7 +49,7 @@ public class PayableDAO {
                         "LEFT JOIN duedate d ON sp.duedate_id = d.duedate_id " +
                         "WHERE COALESCE(s.status, 'active') = 'active' " +
                         "AND COALESCE(b.status, 'active') = 'active' " +
-                        "AND (sp.downpayment_amount IS NULL OR sp.downpayment_amount > 0)";
+                        "AND sp.downpayment_amount IS NOT NULL AND sp.downpayment_amount != ''";
             
             if (schoolYearId != null) {
                 sql += " AND b.school_year_id = ?";
@@ -84,9 +83,15 @@ public class PayableDAO {
                     view.setProgram(rs.getString("program"));
                     view.setYear(rs.getString("year"));
                     view.setSemester(rs.getString("semester_name"));
-                    // Use downpayment_amount from student_payables, or 0 if no payable exists
-                    double downpayment = rs.getDouble("downpayment_amount");
-                    if (rs.wasNull()) {
+                    // Decrypt the amount from the encrypted VARCHAR column
+                    double downpayment = 0;
+                    try {
+                        String encryptedAmount = rs.getString("downpayment_amount");
+                        if (encryptedAmount != null && !encryptedAmount.isEmpty()) {
+                            downpayment = PayableEncryptionUtil.decryptAmount(encryptedAmount, rs.getInt("student_id"));
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error decrypting downpayment_amount: " + e.getMessage());
                         downpayment = 0;
                     }
                     String semName = rs.getString("semester_name");
@@ -674,11 +679,15 @@ public class PayableDAO {
                 }
             }
             
-            // Update payable with new amount and due date
+            // Encrypt amounts for security (store encrypted values directly in the columns)
+            String encryptedDownpayment = PayableEncryptionUtil.encryptAmount(amount, studentId);
+            String encryptedRemaining = PayableEncryptionUtil.encryptAmount(amount, studentId);
+            
+            // Update payable with encrypted amounts and due date
             String updateSql = "UPDATE student_payables SET downpayment_amount = ?, remaining_balance = ?, duedate_id = ? WHERE payable_id = ?";
             try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-                updateStmt.setDouble(1, amount);
-                updateStmt.setDouble(2, amount); // Initially, remaining balance = downpayment amount
+                updateStmt.setString(1, encryptedDownpayment);
+                updateStmt.setString(2, encryptedRemaining);
                 updateStmt.setInt(3, duedateId);
                 updateStmt.setInt(4, payableId);
                 updateStmt.executeUpdate();
@@ -699,13 +708,19 @@ public class PayableDAO {
                 }
             }
             
-            // Insert new payable with due date
-            String insertSql = "INSERT INTO student_payables (belong_id, downpayment_amount, amount_paid, remaining_balance, status, duedate_id) VALUES (?, ?, 0, ?, 'UNPAID', ?)";
+            // Encrypt amounts for security (store encrypted values directly in the columns)
+            String encryptedDownpayment = PayableEncryptionUtil.encryptAmount(amount, studentId);
+            String encryptedAmountPaid = PayableEncryptionUtil.encryptAmount(0.0, studentId); // amount_paid starts at 0
+            String encryptedRemaining = PayableEncryptionUtil.encryptAmount(amount, studentId);
+            
+            // Insert new payable with encrypted amounts and due date
+            String insertSql = "INSERT INTO student_payables (belong_id, downpayment_amount, amount_paid, remaining_balance, status, duedate_id) VALUES (?, ?, ?, ?, 'UNPAID', ?)";
             try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
                 insertStmt.setInt(1, belongId);
-                insertStmt.setDouble(2, amount);
-                insertStmt.setDouble(3, amount);
-                insertStmt.setInt(4, duedateId);
+                insertStmt.setString(2, encryptedDownpayment);
+                insertStmt.setString(3, encryptedAmountPaid);
+                insertStmt.setString(4, encryptedRemaining);
+                insertStmt.setInt(5, duedateId);
                 insertStmt.executeUpdate();
             }
         }

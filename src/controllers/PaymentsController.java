@@ -75,6 +75,7 @@ public class PaymentsController extends BaseController {
     @FXML private Button notificationsBtn;
     @FXML private Button schoolYearsBtn;
     @FXML private Button promissoryNotesBtn;
+    @FXML private Button reportsBtn;
     @FXML private Button settingsBtn;
     @FXML private Button logoutBtn;
     
@@ -244,7 +245,9 @@ public class PaymentsController extends BaseController {
         // Setup header semester dropdown
         if (semesterComboBoxHeader != null) {
             semesterComboBoxHeader.getItems().addAll("1st Sem", "2nd Sem", "Summer Sem");
-            semesterComboBoxHeader.setValue("1st Sem");
+            // Auto-select semester based on current month
+            String autoSemester = utils.SemesterUtil.getSemesterByCurrentMonth();
+            semesterComboBoxHeader.setValue(autoSemester);
             semesterComboBoxHeader.setOnAction(e -> {
                 updateTableColumnVisibility();
                 loadPayments();
@@ -1156,6 +1159,10 @@ public class PaymentsController extends BaseController {
         navigateToPage("promissorynotes.fxml", "DorPay - Promissory Notes", promissoryNotesBtn);
     }
     
+    @FXML
+    private void handleReports() {
+        navigateToPage("reports.fxml", "DorPay - Reports", reportsBtn);
+    }
     
     @FXML
     private void handleSettings() {
